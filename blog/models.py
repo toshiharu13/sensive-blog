@@ -5,15 +5,15 @@ from django.db.models import Count
 
 
 class PostQuerySet(models.QuerySet):
-    def year(self, year):
-        posts_at_year = self.filter(published_at__year=year).order_by(
-            'published_at')
-        return posts_at_year
+    def popular(self):
+        posts = self.annotate(Count('likes'))
+        popular_posts = posts.order_by('-likes__count')
+        return popular_posts
 
 
 class TagQuerySet(models.QuerySet):
     def popular(self):
-        tags = Tag.objects.annotate(Count('posts'))
+        tags = self.annotate(Count('posts'))
         popular_tags = tags.order_by('-posts__count')
         return popular_tags
 
