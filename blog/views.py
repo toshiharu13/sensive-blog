@@ -30,7 +30,7 @@ def serialize_post_optimized(post):
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
-        'tags': [serialize_tag(tag) for tag in post.tags.all()],
+        'tags': [serialize_tag(tag) for tag in Tag.objects.filter(posts__id=post.id).annotate(Count('posts'))],
         'first_tag_title': post.tags.all()[0].title,
     }
 
@@ -38,7 +38,7 @@ def serialize_post_optimized(post):
 def serialize_tag(tag):
     return {
         'title': tag.title,
-        'posts_with_tag': Post.objects.filter(tags=tag).count()
+        'posts_with_tag': tag.posts__count
     }
 
 
@@ -77,7 +77,7 @@ def post_detail(request, slug):
 
     likes = post.likes.all()
 
-    related_tags = post.tags.all()
+    related_tags = Tag.objects.filter(posts__slug=slug).annotate(Count('posts'))
 
     serialized_post = {
         'title': post.title,
@@ -112,14 +112,13 @@ def tag_filter(request, tag_title):
 
     most_popular_posts = []  # TODO. Как это посчитать?
 
-    related_posts = tag.posts.all()[:20]
-
+    related_posts = Tag.objects.filter(posts__title=tag_title).annotate(Count('posts'))
     context = {
         'tag': tag.title,
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
-        'posts': [serialize_post(post) for post in related_posts],
+        'posts': [serialize_post_optimized(post) for post in related_posts],
         'most_popular_posts': [
-            serialize_post(post) for post in most_popular_posts
+            serialize_post_optimized(post) for post in most_popular_posts
         ],
     }
     return render(request, 'posts-list.html', context)

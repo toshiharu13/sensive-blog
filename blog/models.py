@@ -20,6 +20,7 @@ class PostQuerySet(models.QuerySet):
         return self
 
 
+
 class TagQuerySet(models.QuerySet):
     def popular(self):
         tags = self.annotate(Count('posts'))
