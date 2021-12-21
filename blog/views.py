@@ -32,7 +32,7 @@ def serialize_post_optimized(post):
         'published_at': post.published_at,
         'slug': post.slug,
         'tags': [serialize_tag(tag) for tag in post.tags.all().annotate(Count('posts'))],
-        #'tags': [serialize_tag_optimized(tag) for tag in Post.objects.filter(id=post.id).prefetch_related(Prefetch('tags')).annotate(Count('posts'))],
+        #'tags': [serialize_tag_optimized(tag) for tag in Tag.objects.prefetch_related(Prefetch('posts', Post.objects.filter(id=post.id).annotate(Count('tags')))).filter(posts__id=post.id)],
         'first_tag_title': post.tags.all()[0].title,
     }
 
@@ -47,7 +47,7 @@ def serialize_tag(tag):
 def serialize_tag_optimized(tag):
     return {
         'title': tag.title,
-        'posts_with_tag': tag.posts__count
+        'posts_with_tag': tag.posts.tags
     }
 
 
@@ -102,13 +102,13 @@ def post_detail(request, slug):
 
     most_popular_tags = Tag.objects.popular()[:5]
 
-    most_popular_posts = []  # TODO. Как это посчитать?
+    most_popular_posts = Post.objects.popular().prefetch_related('author', 'tags')[:5].fetch_with_comments_count()
 
     context = {
         'post': serialized_post,
         'popular_tags': [serialize_tag(tag) for tag in most_popular_tags],
         'most_popular_posts': [
-            serialize_post(post) for post in most_popular_posts
+            serialize_post_optimized(post) for post in most_popular_posts
         ],
     }
     return render(request, 'post-details.html', context)
@@ -119,7 +119,7 @@ def tag_filter(request, tag_title):
 
     most_popular_tags = Tag.objects.popular()[:5]
 
-    most_popular_posts = []  # TODO. Как это посчитать?
+    most_popular_posts = Post.objects.popular().prefetch_related('author', 'tags')[:5].fetch_with_comments_count()
 
     related_posts = Tag.objects.filter(posts__title=tag_title).annotate(Count('posts'))
     context = {
