@@ -31,8 +31,8 @@ def serialize_post_optimized(post):
         'image_url': post.image.url if post.image else None,
         'published_at': post.published_at,
         'slug': post.slug,
-        'tags': [serialize_tag(tag) for tag in Tag.objects.filter(posts__id=post.id).annotate(Count('posts'))],
-        #'tags': [serialize_tag_optimized(tag) for tag in Tag.objects.filter(posts__id=post.id).annotate(Count('posts')).prefetch_related('posts')],
+        'tags': [serialize_tag(tag) for tag in post.tags.all().annotate(Count('posts'))],
+        #'tags': [serialize_tag_optimized(tag) for tag in Post.objects.filter(id=post.id).prefetch_related(Prefetch('tags')).annotate(Count('posts'))],
         'first_tag_title': post.tags.all()[0].title,
     }
 
@@ -74,8 +74,8 @@ def index(request):
 
 
 def post_detail(request, slug):
-    post = Post.objects.get(slug=slug)
-    comments = Comment.objects.filter(post=post)
+    post = Post.objects.select_related('author').get(slug=slug)
+    comments = Comment.objects.select_related('author').filter(post=post)
     serialized_comments = []
     for comment in comments:
         serialized_comments.append({
