@@ -1,8 +1,9 @@
 from django.shortcuts import render
-from blog.models import Comment, Post, Tag
+from blog.models import Comment, Post, Tag, User
 from django.db.models import Count
 from django.db.models.query import Prefetch
 from django.shortcuts import get_object_or_404
+from django.http import Http404
 
 
 def get_related_posts_count(tag):
@@ -41,7 +42,7 @@ def index(request):
     most_popular_posts = Post.objects.popular().prefetch_related(
         'author',
         Prefetch('tags', queryset=Tag.objects.annotate(Count('posts')))
-        )[:5].fetch_with_comments_count()
+        ).fetch_with_comments_count()
 
     most_fresh_posts = Post.objects.annotate(
         Count('comments')).order_by('-published_at')[:5].prefetch_related(
@@ -62,7 +63,10 @@ def index(request):
 
 
 def post_detail(request, slug):
-    post = Post.objects.select_related('author').get(slug=slug)
+    try:
+        post = Post.objects.select_related('author').get(slug=slug)
+    except Post.DoesNotExist:
+        raise Http404("post does not exist")
     comments = Comment.objects.select_related('author').filter(post=post)
     serialized_comments = []
     for comment in comments:
@@ -95,7 +99,7 @@ def post_detail(request, slug):
     most_popular_posts = Post.objects.popular().prefetch_related(
             'author',
             Prefetch('tags', queryset=Tag.objects.annotate(Count('posts')))
-        )[:5].fetch_with_comments_count()
+        ).fetch_with_comments_count()
 
     context = {
         'post': serialized_post,
@@ -108,17 +112,14 @@ def post_detail(request, slug):
 
 
 def tag_filter(request, tag_title):
-    tag = Tag.objects.get(title=tag_title)
+    tag = get_object_or_404(Tag, title=tag_title)
 
     most_popular_tags = Tag.objects.popular()[:5]
 
-    most_popular_posts = (
-        Post.objects.
-        popular().
-        prefetch_related(
+    most_popular_posts = Post.objects.popular().prefetch_related(
             'author',
             Prefetch('tags', queryset=Tag.objects.annotate(Count('posts')))
-        )[:5].fetch_with_comments_count())
+        ).fetch_with_comments_count()
 
     related_posts = (
         Tag.objects.filter(posts__title=tag_title).annotate(Count('posts'))

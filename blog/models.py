@@ -7,7 +7,7 @@ from django.db.models import Count
 class PostQuerySet(models.QuerySet):
     def popular(self):
         posts = self.annotate(Count('likes'))
-        popular_posts = posts.order_by('-likes__count')
+        popular_posts = posts.order_by('-likes__count')[:5]
         return popular_posts
 
     def fetch_with_comments_count(self):
